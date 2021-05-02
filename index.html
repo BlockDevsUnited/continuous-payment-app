@@ -1,0 +1,90 @@
+<html>
+
+<script src = "index.js">
+</script>
+
+
+<script src="https://cdn.ethers.io/lib/ethers-5.0.umd.min.js" type="text/javascript"></script>
+
+<script>
+  initialize(web3);
+</script>
+<body>
+
+<h1>uDistribute v2</h1>
+<h5>Create UCASH Distribution Programs. </h5>
+<hr>
+<h4>Select token </h4>
+  <select id="tokenListSelect" onChange="loadToken()"></select> <br><br>
+  <input type="checkbox" id="customTokenCheckbox" onclick="ShowHideTokenSelectElements()">custom token</input> <br>
+  <input placeholder = "token address..." id="tokenAddressInput" onInput = "loadToken()" onChange="loadToken()" disabled></input> <br>
+  <label id="invalidAddressLabel"></label>
+<hr>
+<h4 id="selectedTokenHeading">Selected Token: </h4>
+<label id="UCASHBalance"></label> <br>
+<label id="UCASHApproved"></label> <br><br>
+<label>Approve UCASH to Contract</label> <br>
+<input placeholder ="amount" id="approveAmount"></input><button onclick="approve()">Approve</button>
+
+<br>
+<br>
+<button onclick="dispense()">Get Test UCASH</button>
+
+<hr>
+
+<h4>Distribution</h4>
+
+<input placeholder="address" id= "address" onInput="showEnd()"></input> <br>
+<input placeholder="total amount" id = "amount" onInput="showEnd()"></input> <br>
+<input placeholder="initial wait" id = "initialWaitTime" onInput="showEnd()"></input>
+<select id = "waitTimeUnit" onChange="showEnd()">
+      <option value = 1>seconds</option>
+      <option value = 60>minutes</option>
+      <option value = 3600>hours</option>
+      <option value = 86400>days</option>
+      <option value = 604800>weeks</option>
+</select> <br>
+<input type = "number" placeholder="amount per period" id="amountPerPeriod" onInput="showEnd()"></input><br>
+<input type = "number" placeholder="period duration" id="interval" onInput="showEnd()"></input>
+<select id = "periodTimeUnit" onChange="showEnd()">
+      <option value = 1>seconds</option>
+      <option value = 60>minutes</option>
+      <option value = 3600>hours</option>
+      <option value = 86400>days</option>
+      <option value = 604800>weeks</option>
+</select><br>
+<textarea id="descriptionInput" placeholder = "reason for distribution" rows="4" cols="50">
+</textarea> <br>
+<label id="EndDate"></label>
+
+ <br><br>
+
+<button onclick="create()">distribute</button>
+<br>
+<hr>
+<h4>List of uDistributions</h4>
+  <!--<button>Show Details</button><br>-->
+	<table id="DTable">
+<thead>
+  <tr>
+    <th>token</th>
+    <th>recipient</th>
+    <th>withdrawable</th>
+    <th>vault</th>
+    <th>withdraw</th>
+    <th>amount</th>
+    <th>per</th>
+    <th>wait-period</th>
+    <th>description</th>
+
+  </tr>
+</thead>
+</table>
+
+<hr>
+<h6>Contract Details</h6>
+<label id="contractAddress"></label><br>
+<a href="https://gist.github.com/antron3000/5432e444ea89af079b370e655cf8fb9f">Smart Contract Code</a>
+
+</body>
+</html>

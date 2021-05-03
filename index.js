@@ -8,7 +8,7 @@ var URPList;
 
 var UDContract, UDContractP; //uDistribute Contract
 let TokenContract, TokenContractP;
-var UDContractAddress = '0x84631Db1B39E3Da0938D4FC31c8Cc5d265119b1B';
+var UDContractAddress = '0x2f5bCd57878675B3698fCE0a998759F9d25930c0'//'0x84631Db1B39E3Da0938D4FC31c8Cc5d265119b1B';
 var UCASHContractAddress = '0x0f54093364b396461AAdf85C015Db597AAb56203';
 var UCASHABI = [
 	{
@@ -308,22 +308,22 @@ var UDABI = [
 			},
 			{
 				"internalType": "uint256",
-				"name": "initialPeriod",
+				"name": "waitTime",
 				"type": "uint256"
 			},
 			{
 				"internalType": "uint256",
-				"name": "p",
+				"name": "period",
 				"type": "uint256"
 			},
 			{
 				"internalType": "uint256",
-				"name": "a",
+				"name": "amountPerPeriod",
 				"type": "uint256"
 			},
 			{
 				"internalType": "uint256",
-				"name": "totalAmount",
+				"name": "amount",
 				"type": "uint256"
 			},
 			{
@@ -432,9 +432,9 @@ var UDABI = [
 	{
 		"inputs": [
 			{
-				"internalType": "address",
+				"internalType": "uint256",
 				"name": "",
-				"type": "address"
+				"type": "uint256"
 			},
 			{
 				"internalType": "uint256",
@@ -450,9 +450,9 @@ var UDABI = [
 				"type": "uint256"
 			},
 			{
-				"internalType": "address",
-				"name": "recipient",
-				"type": "address"
+				"internalType": "uint256",
+				"name": "recipientIndex",
+				"type": "uint256"
 			},
 			{
 				"internalType": "uint256",
@@ -472,6 +472,25 @@ var UDABI = [
 			{
 				"internalType": "uint256",
 				"name": "totalAmount",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			}
+		],
+		"name": "getRecipientIndex",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
 				"type": "uint256"
 			}
 		],
@@ -524,12 +543,31 @@ var UDABI = [
 	{
 		"inputs": [
 			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "recipientIndexes",
+		"outputs": [
+			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
 			}
 		],
-		"name": "tokenList",
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "recipientList",
 		"outputs": [
 			{
 				"internalType": "address",
@@ -548,12 +586,31 @@ var UDABI = [
 				"type": "address"
 			}
 		],
-		"name": "tokens",
+		"name": "tokenIndexes",
 		"outputs": [
 			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "tokenList",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -769,8 +826,9 @@ async function displayWalletDetails(){
 	balance = utils.commify(balance);
 	approved = utils.commify(approved);
 
-	document.getElementById("UCASHBalance").innerHTML = "Balance: "+ balance + " UCASH"
-	document.getElementById("UCASHApproved").innerHTML = "Approved: " + approved +  " UCASH"
+	document.getElementById("UCASHBalance").innerHTML = "Balance: "+ balance + " " + symbol
+	document.getElementById("UCASHApproved").innerHTML = "Approved: " + approved +  " " + symbol
+	document.getElementById('approveTokenToContract').innerHTML = "Approve " + symbol + " to Contract"
 }
 
 async function getLogs() {
@@ -802,6 +860,7 @@ async function getLogs() {
 		let data = resultD[n].data
 		data = data.substring(2)
 		data = data.match(/.{1,64}/g) //divide data from event log into 64 length sections
+
 		for (j=0;j<5;j++){
 			data[j] = "0x" + data[j]
 		}
@@ -867,11 +926,11 @@ async function populateDistributionsTable(){
 			let date = new Date()
 			let now = date.getTime()
 			now = ethers.BigNumber.from(now.toString())
-
-			let distribution = await UDContractP.distributions(signer._address,o)
-			let a = distribution.a
-			let p = distribution.p
-			let tP = distribution.touchpoint
+			let rI = await UDContractP.getRecipientIndex(signer._address)
+			let d = await UDContractP.distributions(rI,o)
+			let a = d.a
+			let p = d.p
+			let tP = d.touchpoint
 
 			let dn = eventsDU[o].description
 
@@ -890,16 +949,14 @@ async function populateDistributionsTable(){
 			p = p.toString()
 			p+= " seconds"
 
-
 			let w = await UDContractP.getWithdrawable(r.toString(),parseInt(i))		//withdrawable
+
 			w = ethers.utils.formatUnits(w,decimals)
 			w = ethers.utils.commify(w)
-			let d = await UDContractP.distributions(r,parseInt(i))				//distribution
 			let v = d.totalAmount
 			v = ethers.utils.formatUnits(v,decimals)						//vault
 			v = ethers.utils.commify(v)
 			var newRow  = DTable.insertRow(DTable.rows.length);
-
 			var tCell = newRow.insertCell(0);
 			var tokenLink = document.createElement("a")
 			tokenLink.innerHTML = s
@@ -951,7 +1008,8 @@ async function populateDistributionsTable(){
 	}
 
 	async function withdraw(index){
-		await UDContract.withdraw(parseInt(index))
+		console.log(index)
+		await UDContract.withdraw(parseInt(index),{gasLimit:300000})
 	}
 
 

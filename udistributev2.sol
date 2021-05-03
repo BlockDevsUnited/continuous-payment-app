@@ -7,47 +7,76 @@ abstract contract ERC20 {
 }
 
 contract uDistributeV2 {
-    address UCASHAddress = 0x0f54093364b396461AAdf85C015Db597AAb56203;
-    struct distribution{
-        address recipient;
-        uint start;             //start of distribution
-        uint initialPeriod;     //initial waiting period which must elapse
+
+   struct distribution{
+        uint tokenIndex;        //token Index
+        uint recipientIndex;      //recipient
         uint p;                 //period
         uint a;                 //amount per period
         uint touchpoint;        //Withdrawal touch point, when the initial waiting period has ended, or the last withdrawal has occured
         uint totalAmount;       //totalAmount Distributed
     }
 
-    event Distribution(address distributor, address recipient, uint index, uint amount);
-    event Withdrawal(address recipient, uint index, uint amount);
+    event Distribution(address token,address distributor,address recipient,uint256 index,uint256 amount,string description);
+	event Withdrawal(address token,address recipient,uint256 index,uint256 amount);
 
-    mapping(address => distribution[]) public distributions;
+    mapping(uint => distribution[]) public distributions;
 
-    function distribute(address recipient,uint initialPeriod,uint p,uint a, uint totalAmount) public{
-        ERC20(UCASHAddress).transferFrom(msg.sender,address(this),totalAmount);
-        distributions[recipient].push(distribution(recipient,block.timestamp,initialPeriod,p,a,block.timestamp+initialPeriod,totalAmount));
+    mapping(address => uint) public recipientIndexes;
+    address[] public recipientList;
 
-        emit Distribution(msg.sender,recipient,numDistributions(recipient),totalAmount);
+    mapping(address => uint) public tokenIndexes;
+    address[] public tokenList;
+
+    constructor() {
+        tokenList.push(address(0));
+        tokenIndexes[0x0f54093364b396461AAdf85C015Db597AAb56203] = 1;
+        tokenList.push(0x0f54093364b396461AAdf85C015Db597AAb56203);
+        recipientList.push(address(0));
     }
 
-    function withdraw(uint index) public{
+    function distribute(address token, address recipient,uint waitTime, uint period, uint amountPerPeriod, uint amount, string memory description) public{
+        ERC20(token).transferFrom(msg.sender,address(this),amount);
+
+        uint touchPoint = block.timestamp + waitTime;
+
+        uint rIndex = _getRecipientIndex(recipient);
+
+        emit Distribution(token,msg.sender,recipient,numDistributions(recipient),amount,description);
+
+        distributions[rIndex].push(distribution(
+            getTokenIndex(token),
+            rIndex,
+            period,
+            amountPerPeriod,
+            touchPoint,
+            amount)
+        );
+    }
+
+    function withdraw(uint index) public {
+        distribution memory d = distributions[getRecipientIndex(msg.sender)][index];
         require(index<numDistributions(msg.sender), "Requested distribution does not exist");
         uint toWithdraw = getWithdrawable(msg.sender,index);
-
+        require(block.timestamp<d.touchpoint, "waiting period is not over yet");
         require(toWithdraw>0,"Nothing to Withdraw");
 
-        ERC20(UCASHAddress).transfer(msg.sender,toWithdraw);
+        ERC20(tokenList[d.tokenIndex]).transfer(msg.sender,toWithdraw);
 
-        distributions[msg.sender][index].touchpoint = block.timestamp;
-        distributions[msg.sender][index].totalAmount -= toWithdraw;
+        distributions[getRecipientIndex(msg.sender)][index].touchpoint = block.timestamp;
+        distributions[getRecipientIndex(msg.sender)][index].totalAmount -= toWithdraw;
 
-        emit Withdrawal(msg.sender,index,toWithdraw);
+        emit Withdrawal(tokenList[d.tokenIndex],msg.sender,index,toWithdraw);
     }
 
     function getWithdrawable(address recipient,uint index) public view returns (uint){
-        distribution memory d = distributions[recipient][index];
+        distribution memory d = distributions[getRecipientIndex(recipient)][index];
         uint toWithdraw;
         uint elapsedPeriods;
+
+        if(block.timestamp<d.touchpoint){
+            return(0);
+        }
 
         elapsedPeriods = (block.timestamp - d.touchpoint)/d.p;
 
@@ -64,7 +93,27 @@ contract uDistributeV2 {
         return(toWithdraw);
     }
 
+    function getRecipientIndex(address recipient) public view returns(uint){
+        return(recipientIndexes[recipient]);
+    }
+
+    function _getRecipientIndex(address recipient) internal returns(uint){
+        if (recipientIndexes[recipient]==0){
+            recipientIndexes[recipient]= recipientList.length;
+            recipientList.push(recipient);
+        }
+        return(recipientIndexes[recipient]);
+    }
+
+    function getTokenIndex(address token) internal returns(uint){
+        if (tokenIndexes[token]==0){
+            tokenList.push(token);
+            tokenIndexes[token]= tokenList.length;
+        }
+        return(tokenIndexes[token]);
+    }
+
     function numDistributions(address recipient) public view returns(uint) {
-        return distributions[recipient].length;
+        return distributions[getRecipientIndex(recipient)].length;
     }
 }
